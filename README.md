@@ -7,6 +7,7 @@ This repository contains a collection of AI agent skills following the standard 
 *   **2d-motion-graphics**: Create new motion graphics animation HTML sequences for the Mograph Player application. Covers best practices for CSS animation timing, responsiveness, design aesthetics, specific motion patterns, and the Mograph export contract.
 *   **3d-motion-graphics**: Create new 3D motion graphics animations using Three.js for the ThreeJS Player application. Covers best practices for Three.js scene setup, animation loops, lighting, composite video export rules, and manifest registration.
 *   **svg-diagram**: Generates highly aesthetic, modern, soft-styled SVG diagrams natively without relying on Mermaid.
+*   **posterly**: Build academic conference posters (ICML/NeurIPS/ICLR/CVPR) as a single HTML/CSS file, rendered to print-ready PDF via headless Chromium. A deterministic Python gate suite measures real browser geometry so columns align, content fits the canvas, and styling stays on-palette before printing. Upstream: [Chenruishuo/posterly](https://github.com/Chenruishuo/posterly) (AGPL-3.0).
 
 ## Usage
 

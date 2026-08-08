@@ -1,0 +1,341 @@
+"""Shared Playwright launch + page-settle helpers.
+
+Used by ``measure``, ``polish``, and ``render_preview``. Centralises:
+
+1. Print-emulated Chromium context at the correct viewport.
+2. MathJax detection + bounded typeset wait (so a stuck CDN can't
+   hang the script forever).
+3. ``document.fonts.ready`` + two RAFs + a fixed settle ms — so
+   the layout is locked before any geometry is read.
+4. A sanity check that catches the "page has ``$…$`` TeX in body text
+   but no rendered ``<mjx-container>``" case — MathJax never ran
+   (CDN blocked, script error, …). Measurement / polish must NOT
+   silently pass against a raw-TeX layout.
+
+The ``settle_page`` helper returns a :class:`SettleResult` with the raw
+status flags. ``measure``/``polish`` treat MathJax issues as hard fails;
+``render_preview`` warns and continues (rendering raw-TeX is at least
+visible to the user, whereas a silent measure PASS isn't).
+"""
+from __future__ import annotations
+
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from .textutil import ascii_safe
+
+
+def _eprint(*args: Any, **kw: Any) -> None:
+    print(*args, file=sys.stderr, **kw)
+
+
+@dataclass
+class SettleResult:
+    mathjax_intended: bool
+    """The page intended to load MathJax — either a ``<script src=…mathjax…>``
+    tag is present or ``window.MathJax`` config was set. Used to gate the
+    ``tex_without_mathjax`` failure: a poster that documents TeX syntax in
+    prose without ever loading MathJax is a perfectly valid use case and
+    must NOT trip the sanity check."""
+
+    has_mathjax: bool
+    """``window.MathJax.startup.promise`` was defined at settle time
+    (MathJax actually initialized)."""
+
+    mathjax_status: str
+    """One of ``'ok'``, ``'timeout'``, ``'error'``, ``'not-needed'``."""
+
+    mathjax_error: str | None
+    """Exception message if ``mathjax_status == 'error'``, else None."""
+
+    tex_without_mathjax: bool
+    """Body innerText has TeX delimiters but no ``<mjx-container>`` rendered.
+    Only counted as a failure when ``mathjax_intended`` is True (otherwise
+    the ``$…$`` is most likely prose, not math)."""
+
+
+_UNDECODABLE_IMGS_JS = r"""
+async () => {
+  // Broken-image probe: `img.decode()` resolves only for an image that
+  // actually decoded pixels, and rejects for a dead raster OR a dead
+  // SVG -- including the case where the browser renders the <img> as
+  // an alt-text box (non-zero bbox, zero pixels), which defeats every
+  // natural-size / rendered-box heuristic. Merged with the load-error
+  // srcs captured by the init script installed in
+  // open_print_emulated_page, so an <img> a handler already removed
+  // from the DOM is still reported. Authoritative for images that
+  // settle within the per-image bound below; a timed-out decode falls
+  // back to the callers' heuristics.
+  const bad = new Set(window.__posterly_img_errors || []);
+  // Per-image time bound: decode() on a lazy remote image can trigger
+  // a fresh network fetch AFTER network-idle and pend indefinitely --
+  // a timed-out decode counts as OK (conservative; the size heuristics
+  // still apply), never as broken.
+  const bounded = (p, ms) =>
+    Promise.race([p, new Promise(res => setTimeout(res, ms))]);
+  await Promise.all([...document.images].map(im =>
+    bounded(im.decode().then(() => null, () => {
+      const src = im.getAttribute('src') || '';
+      if (src) bad.add(src);
+    }), 3000)
+  ));
+  return [...bad];
+}
+"""
+
+# Installed BEFORE navigation (add_init_script) so image load failures
+# are captured even if a handler removes the <img> before the probes
+# run. Capture phase: an <img>'s error event does not bubble, but it
+# does pass a capturing window listener.
+_IMG_ERROR_CAPTURE_JS = r"""
+window.__posterly_img_errors = [];
+window.addEventListener('error', (e) => {
+  const t = e.target;
+  if (t && t.tagName === 'IMG') {
+    const src = t.getAttribute('src') || '';
+    if (src) window.__posterly_img_errors.push(src);
+  }
+}, true);
+"""
+
+
+def bundled_mathjax_path() -> Path | None:
+    """Absolute path to the skill's bundled MathJax ``tex-svg.js``.
+
+    The templates load MathJax from the jsdelivr CDN (works online, and
+    keeps a hand-opened poster.html self-explanatory). On an offline or
+    flaky-network host that fetch fails intermittently, so measurement
+    dies (or times out) on some runs and not others. We ship one
+    self-contained ``tex-svg.js`` (SVG output inlines the math fonts as
+    paths -- no separate font files) and ``open_print_emulated_page``
+    routes the CDN request to it, making typeset deterministic and
+    offline-safe for every gate. Returns None if the bundle is missing
+    (the route is then skipped and the network path applies as before).
+    """
+    p = (Path(__file__).resolve().parents[2]
+         / "assets" / "mathjax" / "tex-svg.js")
+    return p if p.is_file() else None
+
+
+# Exactly the npm-mirror URL shape the templates use: http(s) host +
+# /npm/mathjax@3[.x[.y]]/es5/tex-svg.js. Anchored and numeric so a
+# file:// URL (a poster's own vendored copy, even npm-layout-shaped), a
+# future mathjax@4, or a hypothetical @30 are all left untouched.
+_MATHJAX_CDN_RE = re.compile(
+    r"^https?://[^/]+/npm/mathjax@3(?:\.\d+){0,2}/es5/tex-svg\.js(?:[?#].*)?$"
+)
+
+
+def route_mathjax_local(page) -> bool:
+    """Intercept the MathJax v3 CDN request and fulfill it from the
+    bundled ``tex-svg.js``. Must be registered BEFORE navigation
+    (``open_print_emulated_page`` does this). The match
+    (``_MATHJAX_CDN_RE``) is deliberately NARROW: http(s) +
+    ``/npm/mathjax@3[.x[.y]]/es5/tex-svg.js`` -- the shape the templates
+    use, on any npm-mirror host -- and nothing else. A poster that
+    vendored its OWN local copy loads that copy (already offline-safe,
+    and possibly a different 3.x build; a ``file://`` URL never
+    matches), and a future ``mathjax@4`` URL is NOT silently downgraded
+    to the bundled 3.2.2 (offline it fails loudly via the settle gate
+    instead). Returns True when the bundle exists and the route
+    registered; on any failure the request falls through to the network
+    (old behavior preserved).
+    """
+    mj = bundled_mathjax_path()
+    if mj is None:
+        return False
+
+    def _handler(route):
+        try:
+            route.fulfill(path=str(mj),
+                          content_type="application/javascript")
+        except Exception:
+            try:
+                route.continue_()
+            except Exception:
+                pass
+
+    try:
+        page.route(_MATHJAX_CDN_RE, _handler)
+        return True
+    except Exception:
+        return False
+
+
+def undecodable_img_srcs(page) -> list[str]:
+    """`src` of every <img> that failed to load (captured at load time)
+    or whose ``decode()`` rejects within the probe's per-image 3s bound
+    -- authoritative for images that settle in time; a timed-out decode
+    is NOT listed (callers' size heuristics still apply). Best-effort:
+    an evaluation failure returns []."""
+    try:
+        return list(page.evaluate(_UNDECODABLE_IMGS_JS))
+    except Exception:
+        return []
+
+
+def open_print_emulated_page(p, viewport_px: tuple[int, int]):
+    """Launch headless Chromium, open a context+page at the viewport,
+    emulate print media. Returns ``(browser, ctx, page)``.
+
+    Print emulation is set BEFORE navigation by the caller (via
+    ``page.emulate_media``), so MathJax typesets against ``@media print``
+    layout from the start. Without that, the screen-mode ``--u`` value
+    leaks in and measurement is unreliable.
+    """
+    w, h = viewport_px
+    browser = p.chromium.launch()
+    ctx = browser.new_context(viewport={"width": w, "height": h})
+    page = ctx.new_page()
+    page.emulate_media(media="print")
+    page.set_viewport_size({"width": w, "height": h})
+    try:
+        page.add_init_script(_IMG_ERROR_CAPTURE_JS)
+    except Exception:
+        pass  # probes fall back to decode()-only detection
+    route_mathjax_local(page)
+    return browser, ctx, page
+
+
+def settle_page(
+    page,
+    *,
+    mathjax_timeout_ms: int = 15000,
+    settle_ms: int = 500,
+) -> SettleResult:
+    """Wait for MathJax, fonts, two RAFs, and an extra fixed ms.
+
+    Returns a :class:`SettleResult` rather than raising — the caller
+    decides whether each flag is a hard fail or a soft warning.
+    Idempotent on math-free pages: detection is synchronous and the
+    typeset wait is skipped when MathJax wasn't loaded.
+    """
+    # 1a) Did the page INTEND to load MathJax? A <script src="…mathjax…">
+    #     tag OR a window.MathJax config object counts. Used to decide
+    #     whether stray `$…$` in body text is "math that failed to render"
+    #     (intended) vs "prose that happens to mention TeX" (not intended).
+    try:
+        mathjax_intended = bool(page.evaluate(
+            "() => !!(document.querySelector('script[src*=\"mathjax\" i]') "
+            "|| (window.MathJax && Object.keys(window.MathJax).length > 0))"
+        ))
+    except Exception:
+        mathjax_intended = False
+
+    # 1b) Did MathJax actually initialise?
+    try:
+        has_mj = bool(page.evaluate(
+            "() => !!(window.MathJax && window.MathJax.startup "
+            "&& window.MathJax.startup.promise)"
+        ))
+    except Exception:
+        has_mj = False
+
+    mj_status = "not-needed"
+    mj_error: str | None = None
+
+    # 2) If present, bound the typeset wait with Promise.race so a
+    #    stuck MathJax can't hang us.
+    if has_mj:
+        mj_js = (
+            f"() => Promise.race(["
+            f"  MathJax.startup.promise"
+            f"    .then(() => (MathJax.typesetPromise"
+            f"      ? MathJax.typesetPromise() : null))"
+            f"    .then(() => 'ok'),"
+            f"  new Promise(r => setTimeout("
+            f"    () => r('timeout'), {mathjax_timeout_ms}))"
+            f"])"
+        )
+        try:
+            mj_status = page.evaluate(mj_js) or "timeout"
+        except Exception as e:
+            mj_status = "error"
+            mj_error = str(e)
+
+    # 3) Fonts (best-effort) + two RAFs + fixed settle ms.
+    try:
+        page.evaluate(
+            "() => document.fonts && document.fonts.ready "
+            "? document.fonts.ready : null"
+        )
+    except Exception:
+        pass
+    page.evaluate(
+        "() => new Promise(r => "
+        "requestAnimationFrame(() => requestAnimationFrame(r)))"
+    )
+    page.wait_for_timeout(settle_ms)
+
+    # 4) Sanity check for the silent-fail case: page has TeX in body
+    #    text but no rendered mjx-container. Covers all four delimiter
+    #    pairs the templates configure (`$...$`, `$$...$$`, `\(...\)`,
+    #    `\[...\]`). No length bound — earlier `{1,1500}` regex limits
+    #    were Codex-flagged for letting long raw-TeX paste slip past.
+    #    `[^$\n]+` (inline) and `[\s\S]+?` (display, non-greedy) avoid
+    #    catastrophic backtracking even on multi-paragraph segments.
+    try:
+        sanity = page.evaluate(
+            "() => {"
+            "  const has_mjx = "
+            "    document.querySelectorAll('mjx-container').length > 0;"
+            "  const txt = document.body && document.body.innerText || '';"
+            "  const has_dollar  = /\\$[^$\\n]+\\$/.test(txt);"
+            "  const has_ddollar = /\\$\\$[\\s\\S]+?\\$\\$/.test(txt);"
+            "  const has_paren   = /\\\\\\([\\s\\S]+?\\\\\\)/.test(txt);"
+            "  const has_brack   = /\\\\\\[[\\s\\S]+?\\\\\\]/.test(txt);"
+            "  return {has_mjx, has_tex: has_dollar || has_ddollar "
+            "                          || has_paren  || has_brack};"
+            "}"
+        )
+        tex_without_mathjax = bool(
+            sanity.get("has_tex") and not sanity.get("has_mjx")
+        )
+    except Exception:
+        tex_without_mathjax = False
+
+    return SettleResult(
+        mathjax_intended=mathjax_intended,
+        has_mathjax=has_mj,
+        mathjax_status=mj_status,
+        mathjax_error=mj_error,
+        tex_without_mathjax=tex_without_mathjax,
+    )
+
+
+def hard_fail_on_settle_problems(
+    result: SettleResult,
+    *,
+    mathjax_timeout_ms: int,
+) -> str | None:
+    """Return a one-line failure message if ``measure`` / ``polish``
+    must hard-fail given a settle result, else None.
+
+    Centralised so the two strict gates agree on what counts as a fail.
+    """
+    if result.mathjax_status == "error":
+        return (
+            f"MathJax typeset error: {ascii_safe(result.mathjax_error)}. "
+            f"Refusing to measure a broken-script page."
+        )
+    if result.mathjax_status == "timeout":
+        return (
+            f"MathJax typeset did not finish within "
+            f"{mathjax_timeout_ms} ms. Refusing to measure a "
+            f"partially typeset poster."
+        )
+    # Only fail when MathJax was INTENDED to load (script tag or config
+    # present) but didn't render anything. A poster that documents TeX
+    # syntax in prose without ever loading MathJax is a valid use case.
+    if result.mathjax_intended and result.tex_without_mathjax:
+        return (
+            "page intended to load MathJax (script/config present) "
+            "but no rendered <mjx-container> was found despite TeX "
+            "delimiters in body text. MathJax likely failed to load "
+            "(CDN block? script error?). Refusing to measure raw-TeX "
+            "layout."
+        )
+    return None

@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<!--
+  Vendored + adapted into posterly from ARIS (Auto-claude-code-research-in-sleep),
+  skill paper-poster-html. Origin: https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep
+  Upstream tokenization: MIT (c) 2026 wanshuiyin -- ../LICENSES/aris-MIT.txt
+  This is the tokenized form of posterly's own neutral template; the class names and
+  content are posterly's own (c) 2026 Ruishuo Chen. As an adapted derivative this file
+  ships as part of posterly under AGPL-3.0. See ../NOTICE.md.
+-->
+<!--
+  ============================================================
+  TEMPLATE: portrait_2col  (ARIS fork of posterly portrait_2col_neutral)
+  Adapted from posterly (MIT, © 2026 Ruishuo Chen) — see LICENSES/ & NOTICE.md;
+  ARIS modifications: flat de-gradient, --fs token scale, zero-inline-style
+  utilities, data-source/data-color-exempt contracts.
+
+  CANVAS:   24in × 36in PORTRAIT (ICLR / CVPR / many workshops default) DEFAULT.
+            CANVAS RETARGETING: change BOTH the @page `size` (one place, in the
+            CANVAS block below) AND the .poster `width`/`height` (one place, in
+            the .poster rule). Keep them in sync.
+            NOTE — ICLR workshops commonly mandate a 61×91 cm PORTRAIT board
+            (A0-ish portrait). To retarget to that:
+              @page { size: 610mm 910mm; }    /* or 61cm 91cm */
+              .poster { width: calc(610 * var(--u)); height: calc(910 * var(--u)); }
+            (1 print --u = 1mm, so 610/910 u == 610/910 mm == 61×91 cm — almost
+            identical to the shipped 24×36in default, which is why portrait is a
+            good fit for ICLR-workshop boards.)
+  LAYOUT:   header → body 2 columns → footer
+            (NO framework banner, NO takeaways strip — vertical space is precious)
+  USE WHEN: venue mandates portrait orientation, sub-A0/A1 size;
+            reader scans top-to-bottom in column 1, then jumps to column 2.
+  HOW TO USE:
+    1. Copy this file to your working directory as `poster.html`.
+    2. Edit the DESIGN TOKENS in `:root` (re-theming mechanics: templates/THEMES.md) —
+       the token block is the ONLY place color/font-size literals may live.
+    3. Replace TODO content placeholders (search for "TODO").
+    4. Run `python3 tools/run_gates.py poster.html --tokens design_tokens.json` (the default driver: preflight -> style -> measure -> polish; design_tokens.json is the design-direction pack written at lock time -- SKILL.md Step 2.5) to align columns and check style/structure.
+    5. Run `python3 tools/render_preview.py poster.html` to produce the PDF.
+  STYLE CONTRACT (ARIS source gate, tools/style_check.py):
+    - NO inline `style=` attributes anywhere in the markup. Use the utility
+      classes (.fs-N, .mt-N, .mb-N, .w-NN, .text-secondary, .nowrap,
+      .text-center) defined in the UTILITIES block below.
+      Sole exceptions: the internal SVG of a `data-color-exempt="logo"` element,
+      and a `style="width: NN%"` on a `data-source="paper"` <img> (AR width tweak).
+    - All font-size values reference a `--fs-1..9` token (or a COMPONENTS.md
+      predefined `calc(var(--fs-N) * k)` variant such as `.eqn--large`).
+    - No `linear-gradient`; the only gradient allowed is the .poster radial
+      tint (every color stop alpha ≤ 0.06).
+  MEASURE ROLES: every layout-critical element carries `data-measure-role`.
+  Generic measurement scripts depend on these — do not remove.
+  ============================================================
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="posterly">
+<title>POSTER TITLE — Venue Year</title>
+
+<!-- MathJax v3 for inline equations. CDN by default when the file is
+     opened by hand; the posterly check tools (measure/polish/pack/…)
+     intercept this request and serve the skill's bundled copy
+     (assets/mathjax/tex-svg.js, MathJax 3.2.2), so gates render math
+     deterministically even offline. To make a hand-opened poster
+     offline too, copy that bundle next to the poster and point the
+     <script> `src` at it. -->
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      packages: {'[+]': ['ams']}
+    },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<style>
+  /* =========================================================
+     CANVAS — 24" × 36" PORTRAIT
+     24in × 25.4 mm/in = 609.6 mm ≈ 610 u (width)
+     36in × 25.4 mm/in = 914.4 mm ≈ 914 u (height)
+     RETARGET: change @page size here AND .poster width/height below.
+     ICLR workshop = 610mm 910mm (61×91 cm) portrait — see header note.
+     ========================================================= */
+  @page { size: 24in 36in; margin: 0; }
+
+  :root {
+    /* ===== DESIGN TOKENS ===== */
+    /* The ONLY place color / font-size literals are allowed (style_check
+       rule 1 + 8 locate this block by the comment pair). Override token
+       VALUES here only — never restyle component rules with new literals.
+       To rebrand, edit these (re-theming mechanics: templates/THEMES.md). */
+
+    /* Primary accent (header underline, card-highlight bar, section nums, .keyword) */
+    --accent:        #2D5F8B;
+    --accent-deep:   #1F4566;
+    --accent-light:  #E8F1F8;
+    --accent-soft:   #D7E5F0;
+    --accent-ink:   #FFFFFF;  /* ink ON the accent (chips, callout, thead) */
+
+    /* Emphasis register for "ours / best" (table .ours row, "★" callouts).
+       Default is the warm gold; a redesign may choose any register that
+       keeps 4.5:1 with --emph-ink (see templates/THEMES.md Mechanism 1). */
+    --emph:          #C9A24A;
+    --emph-soft:     #FFF7E0;
+    --emph-ink:    #14314A;  /* ink ON the emphasis fill. NOT var(--accent-deep):
+                                #1F4566 on the default gold measures 4.16:1 (< AA);
+                                #14314A measures 5.58:1 (>= 4.5:1). */
+
+    /* Text */
+    --text-primary:   #1A1A1A;
+    --text-secondary: #555555;
+    --text-muted:     #888888;
+
+    /* Backgrounds */
+    --bg-page:        #F6F2F0;
+    --bg-card:        #FFFFFF;
+    --bg-card-tint:   #FAFAFB;
+    --bg-emphasis:    var(--accent-light);
+
+    /* Borders */
+    --border-soft:    #D8D8D8;
+    --border-strong:  var(--accent);
+
+    /* Screen-preview backdrop only — @media print overrides body to white.
+       Tokenized so no color literal escapes the token block (style_check rule 1). */
+    --bg-screen:      #2b2b2b;
+
+    /* Base unit. Print: 1mm; screen preview: 1.6px (~3.78px = 1mm at 96dpi). */
+    --u: 1.6px;
+
+    /* Font-size scale (9 steps). Every font-size in this template references
+       one of these. Off-scale px drift is forbidden (style_check rule 8);
+       `calc(var(--fs-N) * k)` is allowed ONLY for COMPONENTS.md variants.
+       The posterly portrait original used a few off-scale sizes (28u title,
+       17u section title, 14u subtitle/eqn/callout); they are snapped to the
+       nearest scale token here so the template stays at exactly 9 steps. */
+    --fs-1: calc(9 * var(--u));    /* micro label                */
+    --fs-2: calc(10 * var(--u));   /* small caption              */
+    --fs-3: calc(11 * var(--u));   /* caption / table            */
+    --fs-4: calc(12 * var(--u));   /* body text                  */
+    --fs-5: calc(13 * var(--u));   /* equation / emphasis        */
+    --fs-6: calc(15 * var(--u));   /* subtitle                   */
+    --fs-7: calc(16 * var(--u));   /* section title              */
+    --fs-8: calc(22 * var(--u));   /* banner number              */
+    --fs-9: calc(32 * var(--u));   /* main title                 */
+
+    /* Fonts. Override at :root if your venue mandates a specific family.
+       Whitelist (style_check rule 7): serif body, sans heads, mono code. */
+    --font-serif: "Charter", "Source Serif Pro", "Georgia", serif;
+    --font-sans:  "Inter", "Helvetica Neue", sans-serif;
+
+    /* Shadows & watermark ink — tokenized so rules 1/3 stay literal-free
+       (the faint radial page tint is the ONE allowed literal outside this
+       block; rule 5 validates it WHEN ENABLED -- the style gate ships with rules 4-5 off). */
+    --shadow-screen: 0 0 60px rgba(0, 0, 0, 0.5);
+    --shadow-card: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(45, 95, 139, 0.05);
+    --ornament-ink: rgba(45, 95, 139, 0.06);
+    /* Identity mark ink — the corner-signature ⊕ adopts the LOCAL accent so it
+       reads native (the woven-signature instead inherits its host's ink). The
+       glyph GEOMETRY, not the hue, is the posterly signature. Re-theme with the
+       palette like any other token. */
+    --ps-mark-ink: var(--accent-deep);
+    /* Corner-radius scale. Every border-radius calc() multiplies by this;
+       1 = the shipped soft look, 0 = square/flat (see templates/THEMES.md). */
+    --rs: 1;
+    /* Figure mount: the ground behind paper figures (transparent PNGs sit on
+       it) and the keyline around them (.figure img / .ff-fig img). Re-theme
+       with the Axis 6 frame decision so figures sit mounted in the design
+       instead of pasted on it; --fig-frame: transparent = frameless mount.
+       QR backgrounds stay literal white -- that's scannability, not styling. */
+    --fig-bg: white;
+    --fig-frame: var(--border-soft);
+    /* ===== END DESIGN TOKENS ===== */
+  }
+
+  /* =========================================================
+     RESET + BASE
+     ========================================================= */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* =========================================================
+     BASE DEFENSES -- wrap & ink safety. KEEP this block in ANY
+     skeleton, including a fully custom one (copy it over and
+     EXTEND the selector lists with your own prose/display
+     classes -- a hand-rolled skeleton that drops it strands
+     single-word widows and ragged titles; polish warns as
+     TEXT-WRAP).
+     - pretty: fills each line, protects the last-line orphan
+       (single-word widow). Safe on all prose.
+     - balance: evens CENTERED display text only -- never pair
+       it with left-aligned multi-sentence prose (SKILL.md wrap
+       rules).
+     - Any inline class you add that paints a background (a
+       .mark highlight, a keyword chip) must declare its own
+       `color` (Gate G -- never inherit ink across a ground
+       change) plus `box-decoration-break: clone;
+       -webkit-box-decoration-break: clone;` so a wrapped
+       highlight keeps its padding on both fragments (then it
+       never needs &nbsp;-gluing to hold one line).
+     ========================================================= */
+  p, li, dd, figcaption,
+  .body-text, .caption, .callout, .section-title { text-wrap: pretty; }
+  .title { text-wrap: balance; }
+  /* Case-safety: lowercase Greek under text-transform:uppercase paints
+     as its capital (α -> Α, a Latin-A lookalike -- "SHARPEN α>1" prints
+     as "SHARPEN A>1"). Wrap the symbol: <span class="tt-none">α</span>.
+     polish flags misses as SYMBOL-CASE. */
+  .tt-none { text-transform: none; }
+
+  html, body {
+    background: var(--bg-screen);
+    font-family: var(--font-serif);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Poster container — exact print dimensions; data-measure-role="poster" so
+     poster_check.py can verify the canvas size.
+     Width  : 610u ≈ 24in.
+     Height : 914u ≈ 36in.
+     RETARGET: width/height must track @page size (see CANVAS block). */
+  .poster {
+    width: calc(610 * var(--u));
+    height: calc(914 * var(--u));
+    background: var(--bg-page);
+    /* The only gradient the catalog sanctions (rule 5 enforces it only when re-enabled): a low-alpha radial tint
+       (every color stop alpha ≤ 0.06). NOT a linear-gradient. */
+    background-image:
+      radial-gradient(ellipse at top left,    rgba(45, 95, 139, 0.06), transparent 40%),
+      radial-gradient(ellipse at bottom right, rgba(201, 162, 74, 0.05), transparent 50%);
+    margin: 20px auto;
+    padding: calc(10 * var(--u)) calc(12 * var(--u));
+    display: grid;
+    /* Single content column pinned to minmax(0,1fr): without an explicit
+       grid-template-columns the implicit `auto` column grows to a wide
+       child's max-content, so a full-width band overflows the canvas and
+       is sliced off at the page edge (measure's canvas-overflow gate).
+       Keep this on any custom skeleton -- it's the column-axis twin of
+       the minmax(0,1fr) body-row defense below. */
+    grid-template-columns: minmax(0, 1fr);
+    /* header | body | footer — no banner row, no takeaways row.
+       minmax(0,1fr) (not bare 1fr): an over-tall body compresses instead of
+       pushing the footer off-canvas */
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: calc(6 * var(--u));
+    box-shadow: var(--shadow-screen);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Decorative top bar — flat accent (de-gradiented from posterly original). */
+  .poster::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0;
+    height: calc(8 * var(--u));
+    background: var(--accent);
+  }
+
+  /* =========================================================
+     HEADER — same 3-col structure as landscape sibling
+     (venue badge | title-block | logo+QR), but compressed vertically
+     by ~1u of padding since portrait is narrower.
+     ========================================================= */
+  .header {
+    display: grid;
+    grid-template-columns: 1fr minmax(50%, auto) 1fr;   /* equal side tracks (1fr) -> the title track is centred on the poster, not just between the side blocks; the centre track is floored at 50% so a one-line title still fills it (else a short title measures narrow and trips a false HEADER/TITLE-SQUEEZED). Best-effort: a side block wide enough to clamp its 1fr track can still pull the title off-centre. */
+    align-items: center;
+    gap: calc(14 * var(--u));
+    padding: calc(1 * var(--u)) calc(3 * var(--u)) calc(4 * var(--u));
+    border-bottom: calc(2 * var(--u)) solid var(--accent);
+  }
+
+  .venue-badge {
+    justify-self: start;          /* anchor to the far-left edge so the centre track stays centred */
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-width: calc(80 * var(--u));
+    text-align: center;
+    border-right: calc(1 * var(--u)) solid var(--border-soft);
+    padding-right: calc(10 * var(--u));
+  }
+  /* Portrait venue mark: snapped 28u -> --fs-9 (32u). */
+  .venue-badge .vb-venue {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: var(--fs-9);
+    color: var(--accent-deep);
+    line-height: 1;
+    letter-spacing: -0.5px;
+  }
+  .venue-badge .vb-year {
+    font-family: var(--font-sans);
+    font-size: var(--fs-4);
+    color: var(--text-secondary);
+    margin-top: calc(3 * var(--u));
+    letter-spacing: 1.2px;
+  }
+  .venue-badge .vb-tag {
+    font-family: var(--font-sans);
+    font-size: var(--fs-2);
+    color: var(--accent);
+    font-weight: 700;
+    margin-top: calc(2 * var(--u));
+    letter-spacing: 1.2px;
+  }
+
+  .title-block { text-align: center; min-width: 0; }
+  /* Portrait title snapped 28u -> --fs-9 (32u). The reader is closer and the
+     canvas is narrower, so the type still feels appropriately scaled. */
+  .title {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: var(--fs-9);
+    line-height: 1.05;
+    color: var(--accent-deep);
+    letter-spacing: -0.5px;
+  }
+  .title .accent { color: var(--emph); }
+  /* subtitle snapped 14u -> --fs-6 (15u). */
+  .subtitle {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: var(--fs-6);
+    color: var(--text-secondary);
+    margin-top: calc(2 * var(--u));
+    font-style: italic;
+  }
+  .authors-line {
+    font-family: var(--font-sans);
+    font-size: var(--fs-5);
+    color: var(--accent);
+    font-weight: 600;
+    margin-top: calc(3 * var(--u));
+  }
+  .authors-line .author { margin: 0 calc(4 * var(--u)); }
+  .authors-line sup { font-size: 0.7em; color: var(--accent); }
+  .authors-line .aff {
+    color: var(--text-secondary);
+    font-weight: 400;
+    display: block;
+    margin-top: calc(2 * var(--u));
+    font-size: var(--fs-3);
+  }
+
+  .right-block {
+    justify-self: end;            /* keep logo+QR in the far-right corner */
+    display: flex; align-items: center;
+    gap: calc(8 * var(--u));
+  }
+  .qr-block { display: flex; flex-direction: column; align-items: center; gap: calc(2 * var(--u)); }
+  .qr-block img {
+    width: calc(75 * var(--u));
+    height: calc(75 * var(--u));
+    border: calc(2 * var(--u)) solid var(--accent);
+    border-radius: calc(4 * var(--u) * var(--rs));
+    background: white;
+    padding: calc(2 * var(--u));
+  }
+  .qr-label {
+    font-family: var(--font-sans);
+    font-size: var(--fs-2);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  /* Optional logo slot — drop your lab logo here. Keep rendered height ~75u to
+     match QR; otherwise the header grows and steals vertical space.
+     LOGO CONTRACT: a logo whose own SVG/PNG carries brand colors must be
+     marked `data-color-exempt="logo"` so style_check exempts it from the
+     palette / inline-style gates, e.g.:
+       <div class="logo-slot"><img src="assets/logos/lab.png" alt="Lab"
+            data-color-exempt="logo"></div>
+     Inline-SVG logos carry the attribute on the <svg> element itself. */
+  .logo-slot img { height: calc(75 * var(--u)); width: auto; max-width: calc(300 * var(--u)); object-fit: contain; display: block; }
+  /* Logo size classes on .logo-slot -- pick from the file's aspect ratio (SKILL.md Gate E).
+     tall/square sit at the QR-matched slot height; wide is intentionally shorter (~68% of the
+     QR) and width-capped so a long wordmark doesn't out-mass the title. Do NOT combine these
+     with logo-stack (that row is width-normalized, below). */
+  .logo-slot.logo-tall img,
+  .logo-slot.logo-square img { height: calc(75 * var(--u)); }
+  .logo-slot.logo-wide img  { height: calc(51 * var(--u)); max-width: calc(125 * var(--u)); }   /* <22% of the ~586u portrait header */
+  /* Logo chip: a solid backing that keeps a transparent / edge-white logo legible on a
+     colored/dark header (white chip) or a light header (.logo-chip-dark); the padding + radius
+     fold a stray white box into a deliberate rounded tile (SKILL.md Gate E, Background). */
+  .logo-chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--bg-card); border-radius: calc(3 * var(--u) * var(--rs));
+    padding: calc(3 * var(--u)) calc(4 * var(--u));
+  }
+  .logo-chip.logo-chip-dark { background: var(--text-primary); }
+  /* logo-row: institution logos in the header right block (REAL logos the
+     user provided — never fabricate a seal). Each img MUST carry
+     data-color-exempt="logo"; height pairs with the QR. */
+  .logo-row { display: flex; align-items: center; gap: calc(4 * var(--u)); }
+  .logo-row img { height: calc(58 * var(--u)); width: auto; display: block; }
+  .logo-row .lr-item {
+    display: flex; flex-direction: column; align-items: center;
+    gap: calc(2 * var(--u));
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: calc(3 * var(--u) * var(--rs));
+    padding: calc(3 * var(--u)) calc(5 * var(--u));
+  }
+  .logo-row .lr-item img { height: calc(48 * var(--u)); }
+  .logo-row .lr-label {
+    font-family: var(--font-sans); font-weight: 600; font-size: var(--fs-1);
+    color: var(--text-secondary); text-align: center; line-height: 1.15;
+  }
+  /* logo-stack variant: WIDE WORDMARKS (AR >= ~2) normalized to EQUAL WIDTH
+     and stacked vertically, left-aligned. Use when two wide wordmarks of
+     different aspect ratio read unbalanced height-matched in a row (equal
+     width lets the less-wide mark grow taller and aligns a clean block).
+     NOT for a square seal or tall mark (equal width blows it up — keep those
+     height-matched). Do NOT also apply the logo-wide/tall/square classes.
+     Width stays under the LOGO/WIDE 22% cap (portrait header ~586u). */
+  .logo-row.logo-stack { flex-direction: column; align-items: flex-start; gap: calc(6 * var(--u)); }
+  .logo-row.logo-stack img { width: calc(118 * var(--u)); height: auto; }
+  /* The narrow portrait header can't fit a logo-stack BESIDE the QR (the row
+     would blow the right-block width gate); when a stack is present, drop the
+     right-block to a column so the logos sit ABOVE the QR. */
+  .right-block:has(.logo-stack) { flex-direction: column; align-items: flex-end; }
+  /* venue badge may carry the official venue logo above its text line */
+  .venue-badge img { height: calc(46 * var(--u)); width: auto; display: block; margin: 0 auto calc(2 * var(--u)); }
+  .venue-badge .vb-title { font-family: var(--font-sans); font-weight: 800; font-size: var(--fs-5); color: var(--accent-deep); letter-spacing: 0.5px; }
+
+  /* =========================================================
+     BODY: 2 columns (portrait posters live and die on column balance)
+
+     CRITICAL: Last-card bottoms of both columns must align —
+     run poster_check.py measure poster.html — spread < 5 px required
+     (< 3 px ideal). Gap to footer in 30–50 px.
+     ========================================================= */
+  .body-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: calc(12 * var(--u));
+    /* No overflow:hidden here — it would clip card shadows (pitfall #7).
+       .poster already clips at the page boundary; min-height:0 is the
+       grid-blowout guard. */
+    min-height: 0;
+  }
+  .column {
+    display: flex; flex-direction: column;
+    gap: calc(7 * var(--u));
+    min-height: 0;
+    height: 100%;
+    padding-bottom: calc(4 * var(--u));   /* shadow breathing room above footer */
+  }
+
+  /* =========================================================
+     CARDS — identical tokens to sibling
+     ========================================================= */
+  .card {
+    background: var(--bg-card);
+    border-radius: calc(5 * var(--u) * var(--rs));
+    padding: calc(5 * var(--u)) calc(10 * var(--u));
+    border: calc(1 * var(--u)) solid var(--border-soft);
+    box-shadow: var(--shadow-card);
+    position: relative;
+  }
+  .card.tinted    { background: var(--bg-card-tint); }
+  .card.card--compact { padding: calc(3 * var(--u)) calc(7 * var(--u)); }   /* predefined variant: tighter padding (fix (f)) */
+  /* .highlight de-gradiented: flat emphasis tint instead of a linear-gradient. */
+  .card.highlight {
+    border-left: calc(6 * var(--u)) solid var(--accent);
+    background: var(--bg-emphasis);
+  }
+
+  /* section-title snapped 17u -> --fs-7 (16u). */
+  .section-title {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: var(--fs-7);
+    color: var(--accent-deep);
+    margin-bottom: calc(3 * var(--u));
+    display: flex; align-items: center;
+    gap: calc(5 * var(--u));
+  }
+  /* Title text + any ★ marker share ONE .st-text span, so the heading wraps as
+     natural text (hanging indent) instead of flex-wrapping atomic items: the
+     number badge is never stranded on its own line and the ★ never widows. */
+  .section-title .st-text { flex: 1; min-width: 0; line-height: 1.18; }
+  /* Graceful fallback if a title is NOT wrapped in .st-text: float the badge so
+     bare inline text still wraps beside it rather than dropping below it. */
+  .section-title:not(:has(.st-text)) { display: block; line-height: 1.18; }
+  .section-title:not(:has(.st-text)) .num { float: left; margin-right: calc(5 * var(--u)); }
+  .section-title .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: calc(24 * var(--u)); height: calc(24 * var(--u));
+    background: var(--accent); color: var(--accent-ink);
+    border-radius: 50%;
+    font-size: var(--fs-6); font-weight: 700;
+    flex-shrink: 0;
+  }
+  /* Inline "★ key/headline" tag inside a section title (replaces inline styles). */
+  .section-title .tag-key {
+    color: var(--emph);
+    font-size: var(--fs-4);
+  }
+
+  /* Body text — snapped 13u -> --fs-5. The 2-column portrait gives each column
+     enough width to carry a meatier line height comfortably. */
+  .body-text, .card p, .card li {
+    font-family: var(--font-serif);
+    font-size: var(--fs-5);
+    line-height: 1.35;
+    color: var(--text-primary);
+  }
+  .card ul, .card ol { padding-left: calc(20 * var(--u)); }
+  .card li { margin-bottom: calc(2 * var(--u)); }
+
+  .keyword       { color: var(--accent); font-weight: 700; }
+  .keyword-emph  { color: var(--emph);   font-weight: 700; }
+  .highlight-text {
+    background: var(--bg-emphasis);
+    padding: 0 calc(3 * var(--u));
+    border-radius: calc(2 * var(--u) * var(--rs));
+  }
+
+  /* Equation block — snapped 14u -> --fs-5 (13u). */
+  .eqn {
+    background: var(--bg-emphasis);
+    border-left: calc(3 * var(--u)) solid var(--accent);
+    padding: calc(4 * var(--u)) calc(10 * var(--u));
+    margin: calc(4 * var(--u)) 0;
+    font-size: var(--fs-5);
+    overflow-x: hidden;
+  }
+  /* COMPONENTS.md predefined variant: a larger equation when a formula is the
+     hero of a card. The `calc(var(--fs-N) * k)` form is allowed ONLY for
+     registered variants like this one (style_check rule 8 / §12.5 nit 1). */
+  .eqn--large { font-size: calc(var(--fs-5) * 1.25); }
+  .eqn .label {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: var(--fs-2);
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: calc(2 * var(--u));
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Callout: solid accent for primary; solid emphasis fill for theorems / "★ key" strips
+     (emph .callout de-gradiented to a flat fill). Snapped 13u -> --fs-5. */
+  .callout {
+    background: var(--accent);
+    color: var(--accent-ink);
+    padding: calc(5 * var(--u)) calc(10 * var(--u));
+    border-radius: calc(4 * var(--u) * var(--rs));
+    font-size: var(--fs-5);
+    margin: calc(4 * var(--u)) 0;
+  }
+  .callout strong { color: var(--emph); }
+  .callout.emph {
+    background: var(--emph);
+    color: var(--emph-ink);   /* route through the token — accent-deep here would dodge the register swap AND fail AA on the default gold */
+  }
+  .callout.emph strong { color: var(--emph-ink); }
+
+  /* Figure container */
+  .figure { margin: calc(4 * var(--u)) 0; text-align: center; }
+  .figure img:not([class*="w-"]) { width: 100%; }
+  .figure--wide img { width: 100%; }   /* predefined variant: force full card width over any .w-NN (fix (f)) */
+  .figure img {
+    /* FIGURE CONTRACT: figures must come from the paper:
+         <img src="assets/paper_figures/x.png" data-source="paper"
+              data-asset-id="x" class="w-100">
+       data-source/data-asset-id are required by asset_check + exempt the
+       image from style_check's palette gate. Use .w-NN utilities (not an
+       inline width) to size it; the only inline-style exception the gate
+       allows is `style="width: NN%"` on a data-source="paper" <img>. */
+    border-radius: calc(4 * var(--u) * var(--rs));
+    border: calc(1 * var(--u)) solid var(--fig-frame);
+    background: var(--fig-bg);
+  }
+  .figure .caption {
+    font-family: var(--font-sans);
+    font-size: var(--fs-3);
+    color: var(--text-secondary);
+    margin-top: calc(3 * var(--u));
+    line-height: 1.3;
+    text-align: left;
+  }
+  .figure .caption strong { color: var(--accent-deep); }
+
+  /* Float a figure BESIDE text in a TEXT-RICH card: text wraps to its side
+     and then below it. The clearfix grows the card to contain the float;
+     mark the <img> data-fig-layout="beside-text" so the AR gates honour the
+     intentionally small width. Use ONLY when there is enough text to fill the
+     figure's height -- a text-sparse card should center .figure instead. A
+     short-text float leaves an L-shaped void below the text, which polish's
+     FIG/BESIDE-TEXT-VOID flags. */
+  .fig-wrap::after { content: ""; display: table; clear: both; }
+  .ff-fig {
+    float: right;
+    width: 48%; max-width: 58%; min-width: 38%;
+    margin: calc(1 * var(--u)) 0 calc(3 * var(--u)) calc(11 * var(--u));
+    text-align: center;
+  }
+  .ff-fig.left {
+    float: left;
+    margin: calc(1 * var(--u)) calc(11 * var(--u)) calc(3 * var(--u)) 0;
+  }
+  .ff-fig img {
+    display: block;
+    width: 100%;
+    border-radius: calc(4 * var(--u) * var(--rs));
+    border: calc(1 * var(--u)) solid var(--fig-frame);
+    background: var(--fig-bg);
+  }
+  .ff-fig .caption {
+    font-family: var(--font-sans);
+    font-size: var(--fs-3);
+    color: var(--text-secondary);
+    margin-top: calc(3 * var(--u));
+    line-height: 1.3;
+    text-align: center;
+  }
+
+  /* Result table with .ours row highlighted with the emphasis tint — snapped 12u -> --fs-4. */
+  .result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-sans);
+    font-size: var(--fs-4);
+    margin-top: calc(3 * var(--u));
+  }
+  .result-table th, .result-table td {
+    padding: calc(2 * var(--u)) calc(4 * var(--u));
+    text-align: center;
+    border-bottom: calc(1 * var(--u)) solid var(--border-soft);
+  }
+  .result-table thead th {
+    background: var(--accent); color: var(--accent-ink);
+    font-weight: 600; font-size: var(--fs-3);
+  }
+  .result-table tbody tr.group-row td {
+    background: var(--bg-emphasis); font-weight: 700;
+    text-align: left;
+    color: var(--accent-deep);
+    padding-left: calc(8 * var(--u));
+    border-bottom: calc(2 * var(--u)) solid var(--accent);
+  }
+  .result-table tbody tr.ours td { background: var(--emph-soft); font-weight: 700; }
+  .result-table tbody tr.ours td:first-child { color: var(--accent-deep); }
+  .result-table .method { text-align: left; padding-left: calc(8 * var(--u)); }
+  .result-table .best { color: var(--accent); font-weight: 700; }
+  /* Muted reference row (replaces inline color styles in table cells). */
+  .result-table .ref, .result-table .ref td { color: var(--text-muted); }
+
+  /* 3-up stat box — kb-num snapped 16u -> --fs-7. */
+  .keybox {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: calc(4 * var(--u));
+    margin: calc(4 * var(--u)) 0 0;
+  }
+  .keybox .kb-item {
+    background: var(--bg-emphasis);
+    border-top: calc(2 * var(--u)) solid var(--accent);
+    padding: calc(3 * var(--u));
+    text-align: center;
+    /* The grid stretches every tile to the tallest one; center the content
+       vertically so a 1-line tile's number aligns with a 2-line neighbour's
+       instead of top-ragged (SKILL Layout pitfall — stat-tile alignment). */
+    display: flex; flex-direction: column; justify-content: center;
+    border-radius: 0 0 calc(3 * var(--u) * var(--rs)) calc(3 * var(--u) * var(--rs));
+  }
+  .kb-item .kb-num {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: var(--fs-7);
+    color: var(--accent);
+    line-height: 1;
+  }
+  .kb-item .kb-label {
+    font-family: var(--font-sans);
+    font-size: var(--fs-2);
+    color: var(--text-secondary);
+    margin-top: calc(2 * var(--u));
+    line-height: 1.15;
+    /* Reserve two label lines (2lh tracks this line-height, 1.15 here)
+       so 1-line and 2-line labels occupy the same height and the big
+       numbers align across tiles. Keep labels <= 2 lines. */
+    min-height: 2lh;
+  }
+
+  /* =========================================================
+     FOOTER — same as sibling (snapped 12u -> --fs-4).
+     (no takeaways strip in portrait — final card per column carries
+     takeaway content instead)
+     ========================================================= */
+  .footer {
+    grid-column: 1 / -1;
+    display: flex; justify-content: space-between; align-items: baseline;
+    /* Narrow portrait: when the two blocks can't sit side by side they stack
+       (wrap) instead of overflowing; row-gap keeps the stacked blocks legible. */
+    flex-wrap: wrap; gap: calc(2 * var(--u)) calc(10 * var(--u));
+    padding-top: calc(8 * var(--u));
+    border-top: calc(1 * var(--u)) solid var(--border-soft);
+    font-family: var(--font-sans);
+    font-size: var(--fs-4);
+    color: var(--text-muted);
+  }
+  /* Long repo URL / email breaks mid-token rather than overflowing the edge. */
+  .footer .repo { color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
+  /* Footer method name (replaces an inline color style). */
+  .footer .method-name { color: var(--accent-deep); }
+
+  /* Optional watermark */
+  .ornament {
+    position: absolute;
+    right: calc(18 * var(--u));
+    bottom: calc(18 * var(--u));
+    font-family: var(--font-sans);
+    font-size: var(--fs-9);
+    color: var(--ornament-ink);
+    font-weight: 900;
+    letter-spacing: 4px;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Identity mark — corner-signature (Axis 8 identity accessory, ALWAYS ON).
+     Sits in the poster's outer-padding "safe zone" (bottom-right gutter),
+     clear of the content box; glyph-only ⊕. This SUPERSEDES the legacy
+     .ornament text watermark above -- leave that disabled (enabling both
+     just duplicates the corner mark). See COMPONENTS.md. */
+  .ps-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .corner-sig {
+    position: absolute;
+    right: calc(4 * var(--u));
+    bottom: calc(3 * var(--u));
+    width: calc(7 * var(--u));
+    height: calc(7 * var(--u));
+    color: var(--ps-mark-ink);
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
+  }
+  .corner-sig svg { display: block; width: 100%; height: 100%; }
+  /* Dark / colored ground: swap to a light ink so the mark doesn't vanish.
+     Add `on-dark` to .corner-sig on an Axis-2 dark-base poster. */
+  .corner-sig.on-dark { color: var(--accent-light); }
+
+  /* Identity mark — woven-signature: ONE ⊕ riding EXISTING content (a best /
+     target / ★ marker, an inline bullet, the
+     wordmark "o"). Sized to the HOST TEXT so it reads as an inline glyph, not
+     a block, and inherits the host ink so it blends. Placed per-poster (never
+     on a data character); aria-hidden; data-color-exempt="logo". See
+     COMPONENTS.md. */
+  [data-ps-mark="woven"] {
+    display: inline-block;
+    width: 0.82em;
+    height: 0.82em;
+    vertical-align: -0.14em;
+    line-height: 0;
+  }
+  [data-ps-mark="woven"] svg { display: block; width: 100%; height: 100%; }
+
+  /* =========================================================
+     UTILITIES — replace inline `style=` attributes in the markup.
+     These exist so the template body can stay 100% inline-style-free
+     (style_check rule 2). Add new utilities here, never an inline style.
+     ========================================================= */
+
+  /* =========================================================
+     DENSITY COMPONENTS (catalogued — see COMPONENTS.md).
+     Guardrail: no component-local color semantics. Distinction is
+     carried by labels, order and typography — never by new hues.
+     ========================================================= */
+  /* equation-stack: compact multi-row formula stack (denser than one big .eqn) */
+  .equation-stack { margin: calc(2 * var(--u)) 0; }
+  .equation-stack .eqn { margin: calc(2 * var(--u)) 0; padding: calc(2 * var(--u)) calc(8 * var(--u)); }
+
+  /* eqn-anatomy: term-by-term anatomy grid (2x2 default; --row variant = 1x4) */
+  .eqn-anatomy {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: calc(2.5 * var(--u)); margin: calc(3 * var(--u)) 0;
+  }
+  .eqn-anatomy.eqn-anatomy--row { grid-template-columns: repeat(4, 1fr); }
+  .eqn-anatomy .ea-item {
+    background: var(--bg-card-tint);
+    border: 1px solid var(--border-soft);
+    border-left: calc(2 * var(--u)) solid var(--accent);
+    border-radius: calc(2 * var(--u) * var(--rs));
+    padding: calc(2 * var(--u)) calc(4 * var(--u));
+    font-size: var(--fs-2); line-height: 1.3;
+  }
+  .eqn-anatomy .ea-tag {
+    display: inline-block; font-family: var(--font-sans); font-weight: 700;
+    font-size: var(--fs-1); color: var(--accent-deep);
+    background: var(--accent-light); border-radius: calc(1.5 * var(--u) * var(--rs));
+    padding: calc(0.5 * var(--u)) calc(2.5 * var(--u));
+    margin-right: calc(1.5 * var(--u));
+  }
+
+  /* flow-strip: labeled pipeline, ALL steps the same accent; ONLY the
+     final step may carry the emphasis top bar. Not an "algorithm" unless the
+     paper has one — see COMPONENTS.md. */
+  .flow-strip { display: flex; align-items: stretch; gap: calc(1.5 * var(--u)); margin: calc(3 * var(--u)) 0; }
+  .flow-strip .step {
+    flex: 1; background: var(--accent-light);
+    border: 1px solid var(--accent-soft); border-radius: calc(2 * var(--u) * var(--rs));
+    padding: calc(2 * var(--u)) calc(2.5 * var(--u));
+    text-align: center; font-size: var(--fs-2); line-height: 1.25;
+  }
+  .flow-strip .step .step-name {
+    display: block; font-family: var(--font-sans); font-weight: 700;
+    font-size: var(--fs-1); color: var(--accent-deep);
+    letter-spacing: 0.5px; text-transform: uppercase;
+    margin-bottom: calc(1 * var(--u));
+  }
+  .flow-strip .step--final { border-top: calc(1.5 * var(--u)) solid var(--emph); background: var(--emph-soft); }
+  .flow-strip .arrow {
+    align-self: center; color: var(--accent);
+    font-family: var(--font-sans); font-weight: 700; font-size: var(--fs-4);
+    flex: 0 0 auto;
+  }
+
+  /* figure--duo: two paper figures sharing one caption; each img MUST be
+     a data-source="paper" asset and carry .w-45/.w-50 (42-48% each). */
+  .figure--duo { display: flex; gap: calc(3 * var(--u)); align-items: flex-start; justify-content: center; }
+  .figure--duo img { max-width: 48%; min-width: 0; }  /* hard cap: duo contract is 42-48% each; an oversized w-NN cannot overflow the card */
+
+  /* result-table derived column (emph-soft = DERIVED arithmetic; label it) */
+  .result-table th.derived, .result-table td.derived {
+    background: var(--emph-soft); font-family: var(--font-sans); font-weight: 700;
+  }
+
+  /* keybox 4-up variant */
+  .keybox.keybox--4 { grid-template-columns: repeat(4, 1fr); }
+
+  /* algo: compact numbered procedure — ONLY when the paper itself states
+     an explicit algorithm/procedure; never invent steps. */
+  ol.algo { padding-left: calc(16 * var(--u)); }
+  ol.algo li { margin-bottom: calc(1.5 * var(--u)); font-size: var(--fs-3); line-height: 1.3; }
+
+  /* claim-pills: provenance mini-table (numeric-heavy posters only) */
+  .claim-pills { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: var(--fs-2); }
+  .claim-pills td {
+    border-bottom: 1px solid var(--border-soft);
+    padding: calc(1.5 * var(--u)) calc(3 * var(--u));
+  }
+  .claim-pills .cp-id {
+    font-weight: 700; color: var(--accent-deep); background: var(--accent-light);
+    border-radius: calc(1.5 * var(--u) * var(--rs)); padding: 0 calc(2.5 * var(--u) * var(--rs)); white-space: nowrap;
+  }
+  .claim-pills .cp-fact { color: var(--accent-deep); font-weight: 700; }
+  .claim-pills .cp-derived { color: var(--emph); font-weight: 700; }
+
+  /* Grid-blowout guards: (1) columns may shrink below min-content so a
+     wide equation can never widen its track and squeeze siblings;
+     (2) over-wide display math scales down to fit its box instead of
+     blowing out the card (SVG keeps aspect via height:auto). */
+  .body-grid > .column { min-width: 0; }
+  .card { min-width: 0; }
+  .eqn mjx-container > svg { max-width: 100%; height: auto; }
+
+  /* ── Utility classes — defined LAST so equal-specificity ties
+     resolve in the utility's favor (source order). ── */
+  .fs-1 { font-size: var(--fs-1); }
+  .fs-2 { font-size: var(--fs-2); }
+  .fs-3 { font-size: var(--fs-3); }
+  .fs-4 { font-size: var(--fs-4); }
+  .fs-5 { font-size: var(--fs-5); }
+  .fs-6 { font-size: var(--fs-6); }
+  .fs-7 { font-size: var(--fs-7); }
+  .fs-8 { font-size: var(--fs-8); }
+  .fs-9 { font-size: var(--fs-9); }
+
+  .mt-1 { margin-top: calc(1 * var(--u)); }
+  .mt-2 { margin-top: calc(2 * var(--u)); }
+  .mt-3 { margin-top: calc(3 * var(--u)); }
+  .mt-4 { margin-top: calc(4 * var(--u)); }
+  .mt-5 { margin-top: calc(5 * var(--u)); }
+  .mt-6 { margin-top: calc(6 * var(--u)); }
+
+  .mb-1 { margin-bottom: calc(1 * var(--u)); }
+  .mb-2 { margin-bottom: calc(2 * var(--u)); }
+  .mb-3 { margin-bottom: calc(3 * var(--u)); }
+  .mb-4 { margin-bottom: calc(4 * var(--u)); }
+
+  .w-45  { width: 45%; }
+  .w-50  { width: 50%; }
+  .w-55  { width: 55%; }
+  .w-60  { width: 60%; }
+  .w-65  { width: 65%; }
+  .w-70  { width: 70%; }
+  .w-75  { width: 75%; }
+  .w-80  { width: 80%; }
+  .w-85  { width: 85%; }
+  .w-90  { width: 90%; }
+  .w-95  { width: 95%; }
+  .w-100 { width: 100%; }
+
+  .text-secondary { color: var(--text-secondary); }
+  .text-muted     { color: var(--text-muted); }
+  .nowrap         { white-space: nowrap; }
+  .text-center    { text-align: center; }
+
+  /* =========================================================
+     PRINT OVERRIDE — KEEP LAST so it wins source-order ties.
+     RETARGET: width/height must match @page size in the CANVAS block.
+     ========================================================= */
+  @media print {
+    html, body { background: white; }
+    .poster { margin: 0; box-shadow: none; width: 24in; height: 36in; page-break-after: avoid; }
+    :root { --u: 1mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="poster" data-measure-role="poster"
+     data-posterly-contract="identity-v1" data-ps-identity="on">
+
+  <!-- Identity sprite: the posterly ⊕ registration glyph, defined ONCE.
+       Zero-size + absolute so it never enters the grid or shifts layout.
+       data-color-exempt="logo" -- it IS the posterly logo mark, which keeps
+       style_check rule 11 (no decorative SVG) and the rule-4 hue gate honest.
+       Symbol id/viewBox/paths are byte-identical across all templates. -->
+  <svg class="ps-sprite" data-color-exempt="logo" aria-hidden="true"><defs>
+    <symbol id="psReg" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="25" fill="none" stroke="currentColor" stroke-width="8"/>
+      <line x1="50" y1="7" x2="50" y2="93" stroke="currentColor" stroke-width="8"/>
+      <line x1="7" y1="50" x2="93" y2="50" stroke="currentColor" stroke-width="8"/>
+    </symbol>
+  </defs></svg>
+
+  <!-- =========================== HEADER =========================== -->
+  <header class="header" data-measure-role="header">
+    <!-- LEFT: venue badge. Replace text or swap for an <img> if your venue allows logos. -->
+    <div class="venue-badge">
+      <div class="vb-venue">VENUE</div>
+      <div class="vb-year">YEAR</div>
+      <div class="vb-tag">POSTER</div>
+    </div>
+
+    <!-- CENTER: title block. Portrait posters are read from closer up, and the
+         canvas is narrower, so the title still reads big at --fs-9. -->
+    <div class="title-block">
+      <h1 class="title">POSTER TITLE: <span class="accent">Subtitle Keyword</span></h1>
+      <div class="subtitle">One-sentence tagline that explains the work in plain English.</div>
+      <div class="authors-line">
+        <span class="author">Author One</span> &middot;
+        <span class="author">Author Two</span> &middot;
+        <span class="author">Author Three<sup>&#9993;</sup></span>
+        <span class="aff">Lab / Department &middot; Institution &middot; City, Country</span>
+      </div>
+    </div>
+
+    <!-- RIGHT: optional logo + QR. Delete .logo-slot if your venue forbids on-poster logos. -->
+    <div class="right-block">
+      <div class="logo-slot">
+        <!-- Affiliation / lab logo goes here. Brand-colored logos MUST carry
+             data-color-exempt="logo" so style_check exempts them:
+               <img src="assets/logos/lab.png" alt="Lab" data-color-exempt="logo">
+             No logo? Delete this entire <div class="logo-slot"> instead of
+             leaving it empty (an empty slot just adds a stray gap). The .aff
+             text line still carries attribution. -->
+      </div>
+      <div class="qr-block">
+        <!-- TODO: replace with your real QR code. The default below is an inline
+             SVG placeholder so the template renders offline. The QR is a
+             monochrome black/white SVG (data-color-exempt="logo" marks it as a
+             non-palette graphic for style_check). Generate a real one with:
+               $ qrencode -o qr.png -s 12 -m 0 "https://your-url"     # apt install qrencode
+               $ python -c "import qrcode; qrcode.make('https://your-url').save('qr.png')"
+             then change src to "assets/qr/qr.png" (export at >= 2x rendered size). -->
+        <img data-color-exempt="logo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23fff'/><g fill='%23222'><rect x='4' y='4' width='26' height='26'/><rect x='70' y='4' width='26' height='26'/><rect x='4' y='70' width='26' height='26'/></g><g fill='%23fff'><rect x='10' y='10' width='14' height='14'/><rect x='76' y='10' width='14' height='14'/><rect x='10' y='76' width='14' height='14'/></g><g fill='%23222'><rect x='14' y='14' width='6' height='6'/><rect x='80' y='14' width='6' height='6'/><rect x='14' y='80' width='6' height='6'/><rect x='38' y='10' width='4' height='4'/><rect x='48' y='10' width='4' height='4'/><rect x='58' y='10' width='4' height='4'/><rect x='34' y='34' width='4' height='4'/><rect x='44' y='38' width='4' height='4'/><rect x='54' y='34' width='4' height='4'/><rect x='62' y='40' width='4' height='4'/><rect x='38' y='46' width='4' height='4'/><rect x='50' y='52' width='4' height='4'/><rect x='62' y='56' width='4' height='4'/><rect x='34' y='60' width='4' height='4'/><rect x='44' y='66' width='4' height='4'/><rect x='56' y='62' width='4' height='4'/><rect x='80' y='80' width='4' height='4'/><rect x='88' y='86' width='4' height='4'/></g><text x='50' y='54' text-anchor='middle' font-family='sans-serif' font-size='6' font-weight='bold' fill='%23888'>QR</text></svg>" alt="QR placeholder — replace with your real QR before printing">
+        <div class="qr-label">TODO: QR label</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================ BODY ============================
+       2 columns. Each column should carry 4-5 cards. The last card of each
+       column should typically be a takeaways / conclusion card so the
+       reader exits with a clear message (we don't have a takeaways strip
+       in portrait).
+       ============================================================ -->
+  <div class="body-grid" data-measure-role="body">
+
+    <!-- ============ COLUMN 1 ============ -->
+    <div class="column" data-measure-role="column">
+
+      <!-- Card 1: motivation. .highlight card to anchor the reader's eye on entry. -->
+      <div class="card highlight" data-measure-role="card">
+        <div class="section-title"><span class="num">1</span><span class="st-text">Motivation</span></div>
+        <p class="body-text">
+          TODO: 2-3 sentences on the problem. Use <span class="keyword">accent color</span>
+          for terms you want the eye to land on; <span class="highlight-text">light pills</span>
+          for short phrases.
+        </p>
+        <ul class="mt-3 fs-4">
+          <li>TODO: pain point 1.</li>
+          <li>TODO: pain point 2.</li>
+        </ul>
+        <div class="callout mt-4">
+          <strong>Q:</strong> TODO: the question your paper answers.
+        </div>
+      </div>
+
+      <!-- Card 2: key insight / setup figure. -->
+      <div class="card" data-measure-role="card">
+        <div class="section-title"><span class="num">2</span><span class="st-text">Key Insight</span></div>
+        <p class="body-text">
+          TODO: 2-3 sentences on the central insight that distinguishes this work.
+        </p>
+        <div class="figure mt-3">
+          <!-- <img src="assets/paper_figures/key-figure.png" data-source="paper"
+                    data-asset-id="key" alt="Key insight"> -->
+          <div class="caption">
+            TODO: caption explaining (a) / (b) / (c) panels in one line each.
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: method step 1 (equation). -->
+      <div class="card" data-measure-role="card">
+        <div class="section-title"><span class="num">3</span><span class="st-text">Method Step 1</span></div>
+        <p class="body-text">TODO: how step 1 works in 1-2 sentences.</p>
+        <div class="eqn">
+          <span class="label">Core equation</span>
+          $$f(x) \;=\; \text{TODO}$$
+        </div>
+        <p class="body-text">TODO: one-sentence interpretation of the equation.</p>
+      </div>
+
+      <!-- Card 4: method step 2 (theorem / key). .highlight + emph callout. -->
+      <div class="card highlight" data-measure-role="card">
+        <div class="section-title"><span class="num">4</span><span class="st-text">Method Step 2&nbsp;<span class="tag-key">&#9733; KEY</span></span></div>
+        <p class="body-text">TODO: how step 2 works.</p>
+        <div class="eqn">
+          <span class="label">Step 2 equation</span>
+          $$g(x) \;=\; \text{TODO}$$
+        </div>
+        <div class="callout emph">
+          <strong>Theorem.</strong> TODO: one-sentence statement, with $\varepsilon$ bounds if applicable.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============ COLUMN 2 ============ -->
+    <div class="column" data-measure-role="column">
+
+      <!-- Card 6: main result. .highlight with headline star. -->
+      <div class="card highlight" data-measure-role="card">
+        <div class="section-title"><span class="num">6</span><span class="st-text">Main Result&nbsp;<span class="tag-key fs-3">&#9733; Headline</span></span></div>
+        <p class="body-text text-secondary fs-3 mb-1">
+          TODO: setup line — dataset, # samples, baselines.
+        </p>
+        <div class="figure">
+          <!-- <img src="assets/paper_figures/main-result.png" data-source="paper"
+                    data-asset-id="main" alt="Main result"> -->
+          <div class="caption fs-2">
+            <strong>Left:</strong> TODO. <strong>Right:</strong> TODO.
+          </div>
+        </div>
+        <!-- Optional: a 3-up .keybox of headline stats. Add back if you have
+             a strong narrative around 3 numbers (best paired with a wider card). -->
+      </div>
+
+      <!-- Card 7: benchmark table. -->
+      <div class="card" data-measure-role="card">
+        <div class="section-title"><span class="num">7</span><span class="st-text">Benchmark Table</span></div>
+        <p class="body-text text-secondary fs-2 mb-1">
+          TODO: setup line — samples, seeds, metric description.
+        </p>
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th class="method">Method</th>
+              <th>Metric A &#8593;</th>
+              <th>Metric B &#8593;</th>
+              <th>Cost &#8595;</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="ref"><td class="method"><em>Reference</em></td><td>x.xx</td><td>x.xx</td><td>x.xx</td></tr>
+            <tr><td class="method">Baseline 1</td><td>x.xx</td><td>x.xx</td><td>x.xx</td></tr>
+            <tr><td class="method">Baseline 2</td><td>x.xx</td><td>x.xx</td><td>x.xx</td></tr>
+            <tr class="ours"><td class="method">Ours</td><td class="best">x.xx</td><td class="best">x.xx</td><td class="best">x.xx</td></tr>
+          </tbody>
+        </table>
+        <p class="body-text mt-2 fs-3">
+          TODO: one-sentence interpretation of the table.
+        </p>
+      </div>
+
+      <!-- Card 8: robustness / ablation / secondary axis. -->
+      <div class="card" data-measure-role="card">
+        <div class="section-title"><span class="num">8</span><span class="st-text">Ablation / Robustness</span></div>
+        <p class="body-text">TODO: 1-2 sentences on what's varied and what's measured.</p>
+        <ul class="mt-3">
+          <li><strong>Setting A</strong> — TODO.</li>
+          <li><strong>Setting B</strong> — TODO.</li>
+          <li><strong>Setting C</strong> — TODO.</li>
+        </ul>
+        <div class="callout mt-3">
+          TODO: bottom-line takeaway from the ablation study.
+        </div>
+      </div>
+
+      <!-- Card 9: conclusion / exit card — replaces the takeaways strip used in landscape.
+           Keep this short and structured so the reader leaves with 3-4 crisp lines.
+           Title, slot labels and the closer label are microcopy, not canon (SKILL.md
+           Step 3): the old fixed set ("Takeaways" + Idea/Method/Result/Practical +
+           "In one sentence:") shipped on every poster is a fingerprint -- reword all
+           three to the poster's voice. -->
+      <div class="card highlight" data-measure-role="card">
+        <div class="section-title"><span class="num">9</span><span class="st-text">TODO: exit-card title&nbsp;<span class="tag-key fs-3">&#9733;</span></span></div>
+        <ul>
+          <li><strong>TODO.</strong> TODO: 1-line.</li>
+          <li><strong>TODO.</strong> TODO: 1-line.</li>
+          <li><strong>TODO.</strong> TODO: 1-line.</li>
+          <li><strong>TODO.</strong> TODO: 1-line.</li>
+        </ul>
+        <div class="callout emph mt-3">
+          <strong>TODO: closer label.</strong> TODO — the elevator pitch a passer-by remembers.
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ============================ FOOTER ============================ -->
+  <!-- Footer labels ("Code:" / "Contact:" / "Acknowledgements:") are microcopy --
+       reword or reorder to the poster's voice rather than shipping this exact
+       skeleton every time (SKILL.md Step 3). -->
+  <div class="footer" data-measure-role="footer">
+    <div>
+      <strong class="method-name">METHOD NAME</strong> &middot; Venue Year &middot;
+      Acknowledgements: TODO.
+    </div>
+    <div>
+      Code: <span class="repo">github.com/&lt;org&gt;/&lt;repo&gt;</span> &nbsp;&middot;&nbsp;
+      Contact: <span class="repo">presenter@example.com</span>
+    </div>
+  </div>
+
+  <!-- LEGACY decorative watermark (Axis 8): a faint corner TEXT watermark,
+       SUPERSEDED by the always-on corner-signature below under identity-v1.
+       Keep it disabled: with data-ps-identity="on" the corner-signature is
+       the required identity mark (dropping it fails preflight), and in an
+       anonymous data-ps-identity="off" poster this lab watermark would itself
+       leak an identifying mark. Kept commented for reference only:
+  <div class="ornament">LAB &middot; INSTITUTION</div>
+  -->
+
+  <!-- Identity accessory (Axis 8) — corner-signature: posterly's ⊕ in the
+       bottom-right safe zone. Always on while data-ps-identity="on". -->
+  <span class="corner-sig" data-ps-mark="corner" data-color-exempt="logo"
+        aria-hidden="true"><svg viewBox="0 0 100 100"><use href="#psReg"/></svg></span>
+
+</div>
+
+</body>
+</html>

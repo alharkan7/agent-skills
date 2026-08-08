@@ -1,0 +1,59 @@
+[project]
+name = "posterly"
+version = "0.1.0"
+description = "Build academic conference posters as a single HTML/CSS file, rendered to print-ready PDF via headless Chromium. A coding-agent skill (Claude Code, Codex, and other skill-capable agents)."
+readme = "README.md"
+license = { text = "AGPL-3.0-only" }
+authors = [{ name = "Ruishuo Chen", email = "crs25@mails.tsinghua.edu.cn" }]
+requires-python = ">=3.10"
+keywords = ["poster", "academic", "conference", "claude-code", "codex", "skill", "html", "css", "playwright"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing :: Markup :: HTML",
+]
+dependencies = [
+    "playwright>=1.40",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+]
+# Real-figure provenance gate (vendored ARIS tools: extract_pdf_figures.py,
+# preprocess_figures.py, asset_check.py). Optional — only needed to pull/check
+# real paper figures; the core HTML / measure / style / preflight gates do not
+# require these.
+figures = [
+    "PyMuPDF>=1.23",
+    "Pillow>=10",
+]
+
+[project.urls]
+Homepage = "https://github.com/Chenruishuo/posterly"
+Issues   = "https://github.com/Chenruishuo/posterly/issues"
+
+# NOTE: posterly is distributed as a coding-agent skill (clone the repo
+# under ~/.claude/skills/posterly/), NOT as a pip-installable Python
+# package. This file exists ONLY to:
+#   1. Declare runtime + dev Python dependencies in a single canonical
+#      place that `pip install "playwright>=1.40"` and `pytest` agree on.
+#   2. Configure pytest's testpaths/pythonpath so the test suite Just
+#      Works from a fresh clone with `python -m pytest`.
+#   3. Carry project metadata (name, author, license, URLs) for the
+#      eventual GitHub release page.
+# We intentionally do NOT publish to PyPI, declare console_scripts, or
+# package the templates as package data — invoking the skill goes
+# through Claude Code (`/posterly`) or direct `python tools/...` calls.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tools"]
