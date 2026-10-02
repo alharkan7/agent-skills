@@ -62,6 +62,10 @@ ENV/
 .claude/
 .cline/
 
+# Locally retained office skill bundles without redistribution rights
+/office-skills-codex/
+/office-skills-zai/
+
 # IDEs
 .idea/
 .vscode/
